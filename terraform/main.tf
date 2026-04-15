@@ -26,33 +26,21 @@ provider "azurerm" {
   features {}
 }
 
-resource "fabric_workspace" "dev" {
-  display_name = "[HANDS-ON] qfi Workspace - DEV"
-  description  = "Fabric workspace for the Introduction to DataOps learning path."
+variable "target_environment" {
+  description = "The environment to deploy (dev or prd)"
+  type        = string
+
+  validation {
+    condition     = contains(["dev", "prd"], var.target_environment)
+    error_message = "target_environment must be 'dev' or 'prd'."
+  }
+}
+
+module "fabric_env" {
+  source = "./modules/fabric-environment"
+
+  environment  = upper(var.target_environment)
+  trigram      = "qfi"
   capacity_id  = "d38db894-91ed-4915-901d-3d229662e961"
-
-  identity = {
-    type = "SystemAssigned"
-  }
-}
-
-resource "fabric_lakehouse" "dev" {
-  display_name = "lkh_dev_hands_on"
-  workspace_id = fabric_workspace.dev.id
-  description  = "Fabric lakehouse for the Introduction to DataOps learning path."
-
-  configuration = {
-    enable_schemas = true
-  }
-}
-
-resource "fabric_workspace_role_assignment" "dev" {
-  workspace_id = fabric_workspace.dev.id
-
-  principal = {
-    id   = "cd76f376-e762-47e8-b795-a05d40e61f67" # grp-hands-on-introduction-to-dataops
-    type = "Group"
-  }
-
-  role = "Contributor"
+  principal_id = "cd76f376-e762-47e8-b795-a05d40e61f67"
 }
