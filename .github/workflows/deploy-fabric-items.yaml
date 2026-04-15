@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - dev
+          - prd
 
 permissions:
   id-token: write
@@ -24,14 +25,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Set workspace name
         id: workspace
         run: |
           ENV="${{ inputs.environment }}"
-          echo "name=[HANDS-ON] qfi Workspace - ${ENV^^}" >> "$GITHUB_OUTPUT"
+          echo "name=[HANDS-ON] {trigram} Workspace - ${ENV^^}" >> "$GITHUB_OUTPUT"
+
       - name: Install fab CLI
         run: |
           pip install ms-fabric-cli
+
       - name: Login to Microsoft Fabric
         run: |
           fab config set encryption_fallback_enabled true
@@ -39,27 +43,9 @@ jobs:
             -u ${{ secrets.SPN_CLIENT_ID }} \
             -p ${{ secrets.SPN_CLIENT_SECRET }} \
             --tenant ${{ secrets.SPN_TENANT_ID }}
+
       - name: Deploy Fabric Items
         run: |
-          lakehouse_name="lkh_${{ inputs.environment }}_hands_on"
-          notebook_name="nb_demo"
-
-          workspace_id=$(fab get "/${{ steps.workspace.outputs.name }}.Workspace/" --output_format text -q id | tr -d '\r')
-          lakehouse_id=$(fab get "/${{ steps.workspace.outputs.name }}.Workspace/${lakehouse_name}.Lakehouse" --output_format text -q id | tr -d '\r') 
-          attachment_payload=$(jq -cn \
-            --arg lakehouse_id "${lakehouse_id}" \
-            --arg lakehouse_name "${lakehouse_name}" \
-            --arg workspace_id "${workspace_id}" \
-            '{
-              known_lakehouses: [{id: $lakehouse_id}],
-              default_lakehouse: $lakehouse_id,
-              default_lakehouse_name: $lakehouse_name,
-              default_lakehouse_workspace_id: $workspace_id
-            }')
-          fab import "/${{ steps.workspace.outputs.name }}.Workspace/${notebook_name}.Notebook" \
-            -i src/fabric/${notebook_name}.Notebook \
+          fab import "/${{ steps.workspace.outputs.name }}.Workspace/nb_demo.Notebook" \
+            -i src/fabric/nb_demo.Notebook \
             -f --format .py
-          fab set "/${{ steps.workspace.outputs.name }}.Workspace/${notebook_name}.Notebook" \
-            -q lakehouse \
-            -i "${attachment_payload}" \
-            -f
